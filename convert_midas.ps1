@@ -1,1 +1,1 @@
-python run.py --Final --data_dir inputs --output_dir outputs --depthNet 0 --colorize_results
+python run.py --Final --data_dir inputs --output_dir outputs --depthNet 0
