@@ -71,6 +71,8 @@ class BaseOptions():
         parser.add_argument('--R20', action='store_true')
         parser.add_argument('--Final', action='store_true')
         parser.add_argument('--colorize_results', action='store_true')
+        parser.add_argument('--invert-colors', action='store_true')
+        parser.add_argument('--colormap', type=str, default=["inferno"])
         parser.add_argument('--max_res', type=float, default=np.inf)
 
         self.initialized = True

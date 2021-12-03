@@ -39,7 +39,7 @@ srlnet = None
 leresmodel = None
 factor = None
 whole_size_threshold = 3000  # R_max from the paper
-GPU_threshold = 1600 - 32 # Limit for the GPU (NVIDIA RTX 2080), can be adjusted 
+GPU_threshold = 1600 - 32 # Limit for the GPU (NVIDIA RTX 2080), can be adjusted
 
 # MAIN PART OF OUR METHOD
 def run(dataset, option):
@@ -129,9 +129,9 @@ def run(dataset, option):
             if option.output_resolution == 1:
                 midas.utils.write_depth(path, cv2.resize(whole_estimate, (input_resolution[1], input_resolution[0]),
                                                          interpolation=cv2.INTER_CUBIC),
-                                        bits=2, colored=option.colorize_results)
+                                        bits=2, colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
             else:
-                midas.utils.write_depth(path, whole_estimate, bits=2, colored=option.colorize_results)
+                midas.utils.write_depth(path, whole_estimate, bits=2, colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
             continue
 
         # Output double estimation if required
@@ -141,9 +141,9 @@ def run(dataset, option):
                 midas.utils.write_depth(path,
                                         cv2.resize(whole_estimate, (input_resolution[1], input_resolution[0]),
                                                    interpolation=cv2.INTER_CUBIC), bits=2,
-                                        colored=option.colorize_results)
+                                        colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
             else:
-                midas.utils.write_depth(path, whole_estimate, bits=2, colored=option.colorize_results)
+                midas.utils.write_depth(path, whole_estimate, bits=2, colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
 
         # Compute the multiplier described in section 6 of the main paper to make sure our initial patch can select
         # small high-density regions of the image.
@@ -160,10 +160,10 @@ def run(dataset, option):
                                         cv2.resize(whole_estimate,
                                                    (input_resolution[1], input_resolution[0]),
                                                    interpolation=cv2.INTER_CUBIC), bits=2,
-                                        colored=option.colorize_results)
+                                        colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
             else:
                 midas.utils.write_depth(path, whole_estimate, bits=2,
-                                        colored=option.colorize_results)
+                                        colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
             continue
 
         # Compute the default target resolution.
@@ -217,7 +217,7 @@ def run(dataset, option):
 
         # Enumerate through all patches, generate their estimations and refining the base estimate.
         for patch_ind in range(len(imageandpatchs)):
-            
+
             # Get patch information
             patch = imageandpatchs[patch_ind] # patch object
             patch_rgb = patch['patch_rgb'] # rgb patch
@@ -235,7 +235,7 @@ def run(dataset, option):
             # Output patch estimation if required
             if option.savepatchs:
                 path = os.path.join(patchped_est_outputpath, imageandpatchs.name + '_{:04}'.format(patch_id))
-                midas.utils.write_depth(path, patch_estimation, bits=2, colored=option.colorize_results)
+                midas.utils.write_depth(path, patch_estimation, bits=2, colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
 
             patch_estimation = cv2.resize(patch_estimation, (option.pix2pixsize, option.pix2pixsize),
                                           interpolation=cv2.INTER_CUBIC)
@@ -290,16 +290,18 @@ def run(dataset, option):
             midas.utils.write_depth(path,
                                     cv2.resize(imageandpatchs.estimation_updated_image,
                                                (input_resolution[1], input_resolution[0]),
-                                               interpolation=cv2.INTER_CUBIC), bits=2, colored=option.colorize_results)
+                                               interpolation=cv2.INTER_CUBIC), bits=2,
+                                    colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
         else:
-            midas.utils.write_depth(path, imageandpatchs.estimation_updated_image, bits=2, colored=option.colorize_results)
+            midas.utils.write_depth(path, imageandpatchs.estimation_updated_image, bits=2,
+                                    colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
 
     print("finished")
 
 
 # Generating local patches to perform the local refinement described in section 6 of the main paper.
 def generatepatchs(img, base_size):
-    
+
     # Compute the gradients as a proxy of the contextual cues.
     img_gray = rgb2gray(img)
     whole_grad = np.abs(cv2.Sobel(img_gray, cv2.CV_64F, 0, 1, ksize=3)) +\
@@ -378,7 +380,7 @@ def adaptiveselection(integral_grad, patch_bound_list, gf):
             patchlist[str(count)]['rect'] = bbox
             patchlist[str(count)]['size'] = bbox[2]
             count = count + 1
-    
+
     # Return selected patches
     return patchlist
 
@@ -543,6 +545,9 @@ if __name__ == "__main__":
     parser.add_argument('--depthNet', type=int, default=0, required=False,
                         help='use to select different base depth networks 0:midas 1:strurturedRL 2:LeRes')
     parser.add_argument('--colorize_results', action='store_true')
+    parser.add_argument('--invert-colors', action='store_true')
+    parser.add_argument('--colormap', type=str, choices=["inferno", "virdis", "hsv", "hue"], default="inferno",
+                        help="Colormap to color depth output.")
     parser.add_argument('--R0', action='store_true')
     parser.add_argument('--R20', action='store_true')
     parser.add_argument('--Final', action='store_true')
@@ -564,6 +569,7 @@ if __name__ == "__main__":
     if option_.depthNet == 0:
         option_.net_receptive_field_size = 384
         option_.patch_netsize = 2*option_.net_receptive_field_size
+        option_.invert_colors = True
     elif option_.depthNet == 1:
         option_.net_receptive_field_size = 448
         option_.patch_netsize = 2*option_.net_receptive_field_size
