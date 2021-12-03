@@ -1,4 +1,6 @@
 from operator import getitem
+
+from tqdm import tqdm
 from torchvision.transforms import Compose
 from torchvision.transforms import transforms
 
@@ -40,6 +42,10 @@ leresmodel = None
 factor = None
 whole_size_threshold = 3000  # R_max from the paper
 GPU_threshold = 1600 - 32 # Limit for the GPU (NVIDIA RTX 2080), can be adjusted
+
+def output_debug(*parts):
+    # print(" ".join([str(part) for part in parts]))
+    pass
 
 # MAIN PART OF OUR METHOD
 def run(dataset, option):
@@ -103,9 +109,10 @@ def run(dataset, option):
         r_threshold_value = 0.2
 
     # Go through all images in input directory
-    print("start processing")
+    output_debug("start processing")
+    pbar = tqdm(desc="predict", total=len(dataset))
     for image_ind, images in enumerate(dataset):
-        print('processing image', image_ind, ':', images.name)
+        output_debug('processing image', image_ind, ':', images.name)
 
         # Load image from dataset
         img = images.rgb_image
@@ -119,7 +126,7 @@ def run(dataset, option):
                                                                        r_threshold_value, scale_threshold,
                                                                        whole_size_threshold)
 
-        print('\t wholeImage being processed in :', whole_image_optimal_size)
+        output_debug('\t wholeImage being processed in :', whole_image_optimal_size)
 
         # Generate the base estimate using the double estimation.
         whole_estimate = doubleestimate(img, option.net_receptive_field_size, whole_image_optimal_size,
@@ -149,11 +156,11 @@ def run(dataset, option):
         # small high-density regions of the image.
         global factor
         factor = max(min(1, 4 * patch_scale * whole_image_optimal_size / whole_size_threshold), 0.2)
-        print('Adjust factor is:', 1/factor)
+        output_debug('Adjust factor is:', 1/factor)
 
         # Check if Local boosting is beneficial.
         if option.max_res < whole_image_optimal_size:
-            print("No Local boosting. Specified Max Res is smaller than R20")
+            output_debug("No Local boosting. Specified Max Res is smaller than R20")
             path = os.path.join(result_dir, images.name)
             if option.output_resolution == 1:
                 midas.utils.write_depth(path,
@@ -164,6 +171,8 @@ def run(dataset, option):
             else:
                 midas.utils.write_depth(path, whole_estimate, bits=2,
                                         colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
+
+            pbar.update()
             continue
 
         # Compute the default target resolution.
@@ -178,7 +187,7 @@ def run(dataset, option):
 
         # recompute a, b and saturate to max res.
         if max(a,b) > option.max_res:
-            print('Default Res is higher than max-res: Reducing final resolution')
+            output_debug('Default Res is higher than max-res: Reducing final resolution')
             if img.shape[0] > img.shape[1]:
                 a = option.max_res
                 b = round(option.max_res * img.shape[1] / img.shape[0])
@@ -194,7 +203,7 @@ def run(dataset, option):
         base_size = option.net_receptive_field_size*2
         patchset = generatepatchs(img, base_size)
 
-        print('Target resolution: ', img.shape)
+        output_debug('Target resolution: ', img.shape)
 
         # Computing a scale in case user prompted to generate the results as the same resolution of the input.
         # Notice that our method output resolution is independent of the input resolution and this parameter will only
@@ -202,7 +211,7 @@ def run(dataset, option):
         # as the input.
         if option.output_resolution == 1:
             mergein_scale = input_resolution[0] / img.shape[0]
-            print('Dynamicly change merged-in resolution; scale:', mergein_scale)
+            output_debug('Dynamicly change merged-in resolution; scale:', mergein_scale)
         else:
             mergein_scale = 1
 
@@ -212,10 +221,11 @@ def run(dataset, option):
         imageandpatchs.set_base_estimate(whole_estimate_resized.copy())
         imageandpatchs.set_updated_estimate(whole_estimate_resized.copy())
 
-        print('\t Resulted depthmap res will be :', whole_estimate_resized.shape[:2])
-        print('patchs to process: '+str(len(imageandpatchs)))
+        output_debug('\t Resulted depthmap res will be :', whole_estimate_resized.shape[:2])
+        output_debug('patchs to process: '+str(len(imageandpatchs)))
 
         # Enumerate through all patches, generate their estimations and refining the base estimate.
+        patch_pbar = tqdm(desc="boosting", total=len(imageandpatchs), leave=False)
         for patch_ind in range(len(imageandpatchs)):
 
             # Get patch information
@@ -225,7 +235,7 @@ def run(dataset, option):
             rect = patch['rect'] # patch size and location
             patch_id = patch['id'] # patch ID
             org_size = patch_whole_estimate_base.shape # the original size from the unscaled input
-            print('\t processing patch', patch_ind, '|', rect)
+            output_debug('\t processing patch', patch_ind, '|', rect)
 
             # We apply double estimation for patches. The high resolution value is fixed to twice the receptive
             # field size of the network for patches to accelerate the process.
@@ -283,6 +293,7 @@ def run(dataset, option):
             # blending at the boundaries of the patch region.
             tobemergedto[h1:h2, w1:w2] = np.multiply(tobemergedto[h1:h2, w1:w2], 1 - mask) + np.multiply(merged, mask)
             imageandpatchs.set_updated_estimate(tobemergedto)
+            patch_pbar.update()
 
         # Output the result
         path = os.path.join(result_dir, imageandpatchs.name)
@@ -295,6 +306,7 @@ def run(dataset, option):
         else:
             midas.utils.write_depth(path, imageandpatchs.estimation_updated_image, bits=2,
                                     colored=option.colorize_results, color_map=option.colormap, invert=option.invert_colors)
+        pbar.update()
 
     print("finished")
 
@@ -324,7 +336,7 @@ def generatepatchs(img, base_size):
 
     # Refine initial Grid of patches by discarding the flat (in terms of gradients of the rgb image) ones. Refine
     # each patch size to ensure that there will be enough depth cues for the network to generate a consistent depth map.
-    print("Selecting patchs ...")
+    output_debug("Selecting patchs ...")
     patch_bound_list = adaptiveselection(grad_integral_image, patch_bound_list, gf)
 
     # Sort the patch list to make sure the merging operation will be done with the correct order: starting from biggest
@@ -413,7 +425,7 @@ def doubleestimate(img, size1, size2, pix2pixsize, net_type):
 # Generate a single-input depth estimation
 def singleestimate(img, msize, net_type):
     if msize > GPU_threshold:
-        print(" \t \t DEBUG| GPU THRESHOLD REACHED", msize, '--->', GPU_threshold)
+        output_debug(" \t \t DEBUG| GPU THRESHOLD REACHED", msize, '--->', GPU_threshold)
         msize = GPU_threshold
 
     if net_type == 0:

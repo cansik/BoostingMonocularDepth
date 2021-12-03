@@ -3,7 +3,7 @@ param (
     [ValidateSet("midas", "strurturedRL", "LeRes")]
     [string]$network = "LeRes",
 
-    [Parameter(HelpMessage="Use Magma color map for depth output.")]
+    [Parameter(HelpMessage="Colorize depth output.")]
     [switch]$colorize = $false,
 
     [Parameter(HelpMessage="Color map to apply.")]
