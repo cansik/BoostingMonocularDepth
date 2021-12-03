@@ -7,4 +7,4 @@ opencv-python
 scikit-image
 scipy
 gdown
-
+cmapy

@@ -2,9 +2,12 @@
 """
 import sys
 import re
+
+import cmapy
 import numpy as np
 import cv2
 import torch
+from matplotlib import pyplot as plt
 
 
 def read_pfm(path):
@@ -199,15 +202,7 @@ def write_depth(path, depth, bits=1, colored=False, color_map="inferno", invert:
             out = 255 - out
 
         if colored:
-            if color_map == "inferno":
-                out = cv2.applyColorMap(out, cv2.COLORMAP_INFERNO)
-            elif color_map == "virdis":
-                out = cv2.applyColorMap(out, cv2.COLORMAP_VIRIDIS)
-            elif color_map == "hsv":
-                out = cv2.applyColorMap(out, cv2.COLORMAP_HSV)
-            elif color_map == "hue":
-                pass
-
+            out = cv2.applyColorMap(out, cmapy.cmap(color_map))
 
         cv2.imwrite(path+'.png', out)
     elif bits == 2:

@@ -546,8 +546,7 @@ if __name__ == "__main__":
                         help='use to select different base depth networks 0:midas 1:strurturedRL 2:LeRes')
     parser.add_argument('--colorize_results', action='store_true')
     parser.add_argument('--invert-colors', action='store_true')
-    parser.add_argument('--colormap', type=str, choices=["inferno", "virdis", "hsv", "hue"], default="inferno",
-                        help="Colormap to color depth output.")
+    parser.add_argument('--colormap', type=str, default="inferno", help="Colormap to color depth output.")
     parser.add_argument('--R0', action='store_true')
     parser.add_argument('--R20', action='store_true')
     parser.add_argument('--Final', action='store_true')

@@ -6,6 +6,9 @@ param (
     [Parameter(HelpMessage="Use Magma color map for depth output.")]
     [switch]$colorize = $false,
 
+    [Parameter(HelpMessage="Color map to apply.")]
+    [string]$colormap = "inferno",
+
     [Parameter(HelpMessage="Define max resolution of output.")]
     [double]$resolution = [double]::PositiveInfinity
 )
@@ -26,4 +29,4 @@ if ($colorize) {
     $color_arg = "--colorize_results"
 }
 
-python run.py --Final --data_dir inputs --output_dir outputs --depthNet $depth_net --max_res $resolution $color_arg
+python run.py --Final --data_dir inputs --output_dir outputs --depthNet $depth_net --max_res $resolution --colormap $colormap $color_arg
