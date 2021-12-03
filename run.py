@@ -580,7 +580,7 @@ if __name__ == "__main__":
     if option_.depthNet == 0:
         option_.net_receptive_field_size = 384
         option_.patch_netsize = 2*option_.net_receptive_field_size
-        option_.invert_colors = True
+        option_.invert_colors = not option_.invert_colors
     elif option_.depthNet == 1:
         option_.net_receptive_field_size = 448
         option_.patch_netsize = 2*option_.net_receptive_field_size

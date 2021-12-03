@@ -20,3 +20,4 @@ inputs
 outputs
 *.pth
 *.mp4
+*.wav
